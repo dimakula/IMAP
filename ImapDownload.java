@@ -14,7 +14,6 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import javax.mail.Store;
 import javax.net.ssl.*;
 
 import java.math.BigInteger;
@@ -127,8 +126,8 @@ public class ImapDownload {
                 //BufferedWriter output = new BufferedWriter
                 //        ( new OutputStreamWriter(socket.getOutputStream()));
 
-                PrintWriter output = new PrintWriter
-                        (new OutputStreamWriter(socket.getOutputStream()), true);
+                OutputStream output =
+                        new BufferedOutputStream(socket.getOutputStream(),8192);
 
                 BufferedReader input = new BufferedReader
                         (new InputStreamReader(socket.getInputStream()));
@@ -144,24 +143,17 @@ public class ImapDownload {
                 int counter = 0;
 
                 // login to server
-                String send = "$ LOGIN " + login + " " + password + "\n";
-                output.print(send);
+                String send = "$ LOGIN " + login + " " + password + "\r\n";
+                output.write(send.getBytes());
                 output.flush();
-                String result;
 
-                while ((result = input.readLine()) != null) {
-                    System.out.println (result);
-                }
+                ReadThread thread = new ReadThread (input);
+                thread.
 
                 for (String folder : folders) {
-                    send = "$ list " + folder + " *" + "\n";
-                    output.print (send);
+                    send = "$ list " + folder + " *" + "\r\n";
+                    output.write (send.getBytes());
                     output.flush();
-
-                    while ((result = input.readLine()) != null) {
-                        System.out.println (result);
-                    }
-
                 }
 
                 /*System.out.println("The Certificates used by peer");
@@ -205,5 +197,26 @@ class HandshakeListener implements HandshakeCompletedListener {
     @Override
     public void handshakeCompleted(HandshakeCompletedEvent e) {
         System.out.println("Handshake succesful!");
+    }
+}
+
+class ReadThread extends Thread {
+
+    BufferedReader input;
+
+    ReadThread (BufferedReader input) {
+        this.input = input;
+    }
+    public void run() {
+        String result;
+        try {
+            while ((result = input.readLine()) != null) {
+                System.out.println(result);
+            }
+        }
+
+        catch (IOException e) {
+            System.out.println ("ReadThread: " + e.getMessage());
+        }
     }
 }
