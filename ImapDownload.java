@@ -20,8 +20,10 @@ import java.math.BigInteger;
 
 import javax.net.ssl.HandshakeCompletedListener;
 
+import java.nio.Buffer;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.stream.Stream;
 
 public class ImapDownload {
 
@@ -123,7 +125,7 @@ public class ImapDownload {
                 SSLSession session = socket.getSession();
                 Certificate[] certChain = session.getPeerCertificates();
 
-                //BufferedWriter output = new BufferedWriter
+                //BufferedWriter input = new BufferedWriter
                 //        ( new OutputStreamWriter(socket.getOutputStream()));
 
                 OutputStream output =
@@ -137,25 +139,42 @@ public class ImapDownload {
 
 
                 if (password == null) {
+                    System.out.println ("Please enter your password");
                     password = stdIn.readLine();
                 }
 
-                int counter = 0;
+                // Counter with at least 5 digits
+                int counter = 00000;
+                String result;
 
                 // login to server
-                String send = "$ LOGIN " + login + " " + password + "\r\n";
-                output.write(send.getBytes());
+                String command = "$ LOGIN " + login + " " + password + "\r\n";
+                output.write(command.getBytes());
                 output.flush();
 
-                ReadThread thread = new ReadThread (input);
-                thread.
+                System.out.println(input.readLine ()); // Useless Line
+                System.out.println(input.readLine ()); // Message saying you're authenticated
 
                 for (String folder : folders) {
-                    send = "$ list " + folder + " *" + "\r\n";
-                    output.write (send.getBytes());
+                    // Select folder or subfolder to start downloading messages
+                    command = "$ SELECT " + folder + "\r\n";
+                    output.write (command.getBytes());
                     output.flush();
+
+                    // checks the second word in the line to see if it's NO
+                    result = input.readLine().split(" ")[1];
+
+                    for (int i = 0; i < 6; i++) {
+                        result = input.readLine();
+                        System.out.println (result);
+                    }
+                    //Stream<String> lines = input.lines();
+                    //lines.forEach(System.out::println);
+
+
                 }
 
+                socket.close();
                 /*System.out.println("The Certificates used by peer");
 
                 for (int i = 0; i < certChain.length; i++) {
@@ -197,26 +216,5 @@ class HandshakeListener implements HandshakeCompletedListener {
     @Override
     public void handshakeCompleted(HandshakeCompletedEvent e) {
         System.out.println("Handshake succesful!");
-    }
-}
-
-class ReadThread extends Thread {
-
-    BufferedReader input;
-
-    ReadThread (BufferedReader input) {
-        this.input = input;
-    }
-    public void run() {
-        String result;
-        try {
-            while ((result = input.readLine()) != null) {
-                System.out.println(result);
-            }
-        }
-
-        catch (IOException e) {
-            System.out.println ("ReadThread: " + e.getMessage());
-        }
     }
 }
