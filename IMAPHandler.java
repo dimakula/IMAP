@@ -158,8 +158,11 @@ public class IMAPHandler
 	{
 		if( theAuthenticationFlag )
 		{
-			String result;
+			String result, sender, subject, folderName;
+			String [] splitResult;
 			int numEmails = 0;
+			sender = subject = "";
+			int counter = 0; // Used to name the email folder
 			
 			/*
 			 * Iterate through all the given directories and create them if
@@ -176,12 +179,9 @@ public class IMAPHandler
 					theOutputStream.write(command.getBytes());
 					theOutputStream.flush();
 
-					/* checks the second word in the line to see if it's NO. */
-                    //result = theInputBuffer.readLine().split(" ")[1];
-
 					while((result = theInputBuffer.readLine()) != null) {
-						System.out.println (result);
 
+						System.out.println (result);
 						// Get the number of emails present in the mailbox
 						if (result.matches(".*\\bEXISTS\\b.*")) {
 							numEmails = Integer.parseInt (result.replaceAll("\\D+",""));
@@ -194,13 +194,43 @@ public class IMAPHandler
 							break;
 						}
 					}
+					
+					// Loop to get all the emails in the mailbox
+					for (int i = 1; i <= numEmails; i++) {
+						command = "$ FETCH " + i + " (FLAGS BODY[HEADER])\r\n";
+						theOutputStream.write(command.getBytes());
+						theOutputStream.flush();
 
-					command = "$ FETCH 1:" + numEmails + " (FLAGS BODY[HEADER.FIELDS (From)])\r\n";
+						while ((result = theInputBuffer.readLine()) != null) {
 
-					theOutputStream.write(command.getBytes());
-                    theOutputStream.flush();
+							splitResult = result.split(":");
 
-                    
+							//System.out.println(result);
+							if (splitResult[0].equals("Subject")) {
+								subject = splitResult[1].trim();
+								// Replace all non Alphanumeric Characters with '-'
+								subject = subject.replaceAll("[^A-Za-z0-9]", "-");
+							} else if (splitResult[0].equals("From")) {
+								sender = splitResult[1].trim();
+							}
+
+							// Breaks out on success or failure
+							else if (result.matches(".*\\b(Success)\\b.*") ||
+									result.matches(".*\\b(Failure)\\b.*")) {
+								break;
+							}
+						}
+
+						folderName = "";
+						folderName.concat(Integer.toString(counter++));
+						folderName.concat("_");
+						folderName.concat(sender);
+						folderName.concat("_");
+						folderName.concat(subject);
+
+						System.out.println(folderName);
+					}
+
 				} catch (IOException theException) {
 					
 					theException.printStackTrace();
