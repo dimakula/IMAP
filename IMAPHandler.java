@@ -7,12 +7,15 @@ import java.nio.BufferUnderflowException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 
+import javax.management.relation.RelationServiceNotRegisteredException;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+
+import java.util.regex.*;
 
 import org.omg.PortableServer.ThreadPolicyOperations;
 
@@ -27,6 +30,7 @@ public class IMAPHandler
 	
 	/* Default exception messages */
 	private static final String DEF_PASSWORD_REQ_MSG = "Please enter your password:";
+	private static final String DEF_DIRECTORY_QUALIFIER = "HasNoChildren";
 	
 	/////////////////////////
 	// Private Member Data //
@@ -256,6 +260,10 @@ public class IMAPHandler
 		ArrayList<String> output = new ArrayList<String>();
 		String result = null;
 		
+		/* Regex variables. */
+		Pattern extractionPattern = Pattern.compile("\"([A-Z])\\w+\"$");
+		Matcher extractionMatcher;
+		
 		/* Build the list command. */
 		String listCommand = "$ LIST \"\" *" ;
 		
@@ -266,11 +274,15 @@ public class IMAPHandler
 			theOutputStream.flush();
 		    while((result = theInputBuffer.readLine()) != null)
 		    {
-		    	System.out.println (result);
 
-		    	// Check if matches no children before add
-				output.add(result);
-
+		    	// Check if matches no children before add.
+		    	if(result.contains("HasNoChildren"))
+		    	{
+		    		extractionMatcher = extractionPattern.matcher(result);
+		    		result = extractionMatcher.group();
+		    		output.add(result);
+		    	}
+		    
 				if (result.matches(".*\\b(Success)\\b.*") ||
 					result.matches(".*\\b(Failure)\\b.*")) {
 					break;
@@ -281,7 +293,7 @@ public class IMAPHandler
 		catch (IOException inException) {
 			inException.printStackTrace();
 		}
-
+		
 		return output.toArray(new String[output.size()]);
 	}
 	
