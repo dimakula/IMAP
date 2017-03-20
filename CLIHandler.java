@@ -216,7 +216,7 @@ public class CLIHandler
 		InetAddress output = null;
 		try 
 		{
-			output = InetAddress.getByName(theCommandLineHandler.getOptionValue(DEF_SERVER_OPT));
+			output = InetAddress.getByName(theCommandLineHandler.getOptionValue( DEF_SERVER_OPT ));
 		} 
 		catch (UnknownHostException inException) {
 			
@@ -225,5 +225,9 @@ public class CLIHandler
 		
 		return output;
 	}
+
+	public boolean getDeleteFlag () { return theCommandLineHandler.hasOption ( DEF_DELETE_OPT ); }
+
+	public boolean getAllFlag () { return theCommandLineHandler.hasOption ( DEF_ALL_OPT ); }
 	
 }

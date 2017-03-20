@@ -50,6 +50,8 @@ public class IMAPHandler
 	private String theLogin;
 	private boolean theAuthenticationFlag;
 	private String[] theFolders;
+	private boolean allFlag;
+	private boolean deleteFlag;
 	
 	////////////////////////////
 	// Private Member Methods //
@@ -114,7 +116,7 @@ public class IMAPHandler
 	///////////////////////////
 	
 	public IMAPHandler(InetAddress inServer, String inPort, String inLogin, String inPassword,
-					   String [] inFolders)
+					   String [] inFolders, boolean inAllFlag, boolean inDeleteFlag)
 	{
 		/* Member data get the parameter(s). */
 		theServer = inServer;
@@ -122,6 +124,8 @@ public class IMAPHandler
 		theLogin = inLogin;
 		thePassword = inPassword;
 		theFolders = inFolders;
+		allFlag = inAllFlag;
+		deleteFlag = inDeleteFlag;
 		
 		defaultInitialization();
 		return;
@@ -163,22 +167,24 @@ public class IMAPHandler
 			for( String folder : theFolders )
 			{
 				/* Create the command string. */
-				final String dirCreateCommand = "$ SELECT " + folder + "\r\n";
+				final String selectCommand = "$ SELECT " + folder + "\r\n";
 				
 				try
 				{
-					theOutputStream.write(dirCreateCommand.getBytes());
+					theOutputStream.write(selectCommand.getBytes());
 					theOutputStream.flush();
 
 					/* checks the second word in the line to see if it's NO. */
                     //result = theInputBuffer.readLine().split(" ")[1];
                     
-                    /* Grab the result an print it out. */
+                    /* Grab the results of the select and print it out. */
                     for( int i = 0; i < 8; i++ )
                     {
 						result = theInputBuffer.readLine();
                     	System.out.println(result);
                     }
+
+					final String fetchCommand = "$ FETCH 0:";
                     
 				} catch (IOException theException) {
 					

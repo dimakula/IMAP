@@ -11,7 +11,9 @@ public class Main {
 													 theClihandler.getPort(),
 				                                     theClihandler.getLogin(), 
 				                                     theClihandler.getPassword(),
-                                                     theClihandler.getFolders());
+                                                     theClihandler.getFolders(),
+                                                     theClihandler.getDeleteFlag(),
+                                                     theClihandler.getAllFlag());
 		
 		/* Attempt to login and pull directories.  */
 		theImapHandler.login();
