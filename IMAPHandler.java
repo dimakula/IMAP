@@ -113,13 +113,15 @@ public class IMAPHandler
 	// Public Member Methods //
 	///////////////////////////
 	
-	public IMAPHandler(InetAddress inServer, String inPort, String inLogin, String inPassword) 
+	public IMAPHandler(InetAddress inServer, String inPort, String inLogin, String inPassword,
+					   String [] inFolders)
 	{
 		/* Member data get the parameter(s). */
 		theServer = inServer;
 		thePort = inPort;
 		theLogin = inLogin;
 		thePassword = inPassword;
+		theFolders = inFolders;
 		
 		defaultInitialization();
 		return;
@@ -161,19 +163,20 @@ public class IMAPHandler
 			for( String folder : theFolders )
 			{
 				/* Create the command string. */
-				final String dirCreateCommand = "$ SELECT " + theFolders + "\r\n";
+				final String dirCreateCommand = "$ SELECT " + folder + "\r\n";
 				
 				try
 				{
 					theOutputStream.write(dirCreateCommand.getBytes());
 					theOutputStream.flush();
-					
+
 					/* checks the second word in the line to see if it's NO. */
-                    result = theInputBuffer.readLine().split(" ")[1];
+                    //result = theInputBuffer.readLine().split(" ")[1];
                     
                     /* Grab the result an print it out. */
-                    for( int i = 0; i < 6; i++ )
+                    for( int i = 0; i < 8; i++ )
                     {
+						result = theInputBuffer.readLine();
                     	System.out.println(result);
                     }
                     
