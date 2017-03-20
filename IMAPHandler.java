@@ -266,7 +266,15 @@ public class IMAPHandler
 			theOutputStream.flush();
 		    while((result = theInputBuffer.readLine()) != null)
 		    {
-		    	output.add(result);
+		    	System.out.println (result);
+
+		    	// Check if matches no children before add
+				output.add(result);
+
+				if (result.matches(".*\\b(Success)\\b.*") ||
+					result.matches(".*\\b(Failure)\\b.*")) {
+					break;
+				}
 		    }
 			
 		} 
@@ -274,7 +282,7 @@ public class IMAPHandler
 			inException.printStackTrace();
 		}
 
-		return (String[])output.toArray();
+		return output.toArray(new String[output.size()]);
 	}
 	
 	private void createDirectories()
