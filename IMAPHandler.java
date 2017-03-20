@@ -145,7 +145,8 @@ public class IMAPHandler
 			
 			/* Print authentication message. */
 	        System.out.println(theInputBuffer.readLine ());
-	        System.out.println(theInputBuffer.readLine ()); 
+	        System.out.println(theInputBuffer.readLine ());
+	        System.out.println(theInputBuffer.readLine ());
 		}
 		catch (IOException inException) {
 			inException.printStackTrace();
@@ -165,7 +166,7 @@ public class IMAPHandler
 			/* If the all flag is set, all directories are polled. */
 			if(theAllFlag)
 			{
-				theFolders = getFullDirectoryList();
+				//theFolders = getFullDirectoryList();
 			}
 			
 			/* Create the directories for storing the emails. */
@@ -184,7 +185,7 @@ public class IMAPHandler
 			{
 				/* Create the command string. */
 				String command = "$ SELECT " + folder + "\r\n";
-				
+
 				try
 				{
 					theOutputStream.write(command.getBytes());
@@ -192,11 +193,9 @@ public class IMAPHandler
 
 					while((result = theInputBuffer.readLine()) != null) {
 
-						System.out.println (result);
 						// Get the number of emails present in the mailbox
 						if (result.matches(".*\\bEXISTS\\b.*")) {
 							numEmails = Integer.parseInt (result.replaceAll("\\D+",""));
-							System.out.println(numEmails);
 						}
 
 						// Breaks out on success or failure
@@ -208,37 +207,47 @@ public class IMAPHandler
 					
 					// Loop to get all the emails in the mailbox
 					for (int i = 1; i <= numEmails; i++) {
-						command = "$ FETCH " + i + " (FLAGS BODY[HEADER])\r\n";
+						command = "$ FETCH " + i + " (FLAGS BODY[HEADER.FIELDS (From)])\r\n";
 						theOutputStream.write(command.getBytes());
 						theOutputStream.flush();
 
 						while ((result = theInputBuffer.readLine()) != null) {
 
-							splitResult = result.split(":");
-
-							//System.out.println(result);
-							if (splitResult[0].equals("Subject")) {
-								subject = splitResult[1].trim();
-								// Replace all non Alphanumeric Characters with '-'
-								subject = subject.replaceAll("[^A-Za-z0-9]", "-");
-							} else if (splitResult[0].equals("From")) {
-								sender = splitResult[1].trim();
-							}
-
 							// Breaks out on success or failure
-							else if (result.matches(".*\\b(Success)\\b.*") ||
+							if (result.matches(".*\\b(Success)\\b.*") ||
 									result.matches(".*\\b(Failure)\\b.*")) {
 								break;
 							}
+
+							// get the email between the angle  brackets
+							if (result.contains("From")) {
+								sender = theInputBuffer.readLine();
+								sender = sender.split("<")[1].split(">")[0];
+							}
 						}
 
-						folderName = "";
-						folderName.concat(Integer.toString(counter++));
-						folderName.concat("_");
-						folderName.concat(sender);
-						folderName.concat("_");
-						folderName.concat(subject);
+						command = "$ FETCH " + i + " (FLAGS BODY[HEADER.FIELDS (Subject)])\r\n";
+						theOutputStream.write(command.getBytes());
+						theOutputStream.flush();
 
+						while ((result = theInputBuffer.readLine()) != null) {
+
+							// Breaks out on success or failure
+							if (result.matches(".*\\b(Success)\\b.*") ||
+									result.matches(".*\\b(Failure)\\b.*")) {
+								break;
+							}
+
+							splitResult = result.split(":");
+							if (splitResult[0].equals ("Subject"))
+							{
+								subject = splitResult[1];
+								subject = subject.trim();
+								subject = subject.replaceAll("[^A-Za-z0-9]", "-");
+							}
+						}
+
+						folderName = Integer.toString(counter++) + "_" + sender + "_" + subject;
 						System.out.println(folderName);
 					}
 
