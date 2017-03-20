@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.BufferUnderflowException;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
@@ -50,7 +51,7 @@ public class IMAPHandler
 	private String theLogin;
 	private boolean theAuthenticationFlag;
 	private String[] theFolders;
-	private boolean allFlag;
+	private boolean theAllFlag;
 	private boolean deleteFlag;
 	
 	////////////////////////////
@@ -124,7 +125,7 @@ public class IMAPHandler
 		theLogin = inLogin;
 		thePassword = inPassword;
 		theFolders = inFolders;
-		allFlag = inAllFlag;
+		theAllFlag = inAllFlag;
 		deleteFlag = inDeleteFlag;
 		
 		defaultInitialization();
@@ -158,8 +159,21 @@ public class IMAPHandler
 	{
 		if( theAuthenticationFlag )
 		{
+<<<<<<< HEAD
 			String result, sender, subject, folderName;
 			String [] splitResult;
+=======
+			/* If the all flag is set, all directories are polled. */
+			if(theAllFlag)
+			{
+				theFolders = getFullDirectoryList();
+			}
+			
+			/* Create the directories for storing the emails. */
+			createDirectories();
+			
+			String result;
+>>>>>>> 85dd1b9bfad464f52b352440d22f1a66b405d3ff
 			int numEmails = 0;
 			sender = subject = "";
 			int counter = 0; // Used to name the email folder
@@ -239,7 +253,49 @@ public class IMAPHandler
 			}
 		}
 	}
+	
+	private String[] getFullDirectoryList()
+	{
+		ArrayList<String> output = new ArrayList<String>();
+		String result = null;
+		
+		/* Build the list command. */
+		String listCommand = "$ LIST \"\" *" ;
+		
+		/* Attempt to run the command and extract the result. */
+		try
+		{
+			theOutputStream.write(listCommand.getBytes());
+			theOutputStream.flush();
+		    while((result = theInputBuffer.readLine()) != null)
+		    {
+		    	output.add(result);
+		    }
+			
+		} 
+		catch (IOException inException) {
+			inException.printStackTrace();
+		}
 
+		return (String[])output.toArray();
+	}
+	
+	private void createDirectories()
+	{
+		for( String folder : theFolders )
+		{
+			if(new File(folder).mkdir())
+			{
+				System.out.println("Created directory ./" + folder);
+			}
+			else
+			{
+				System.out.println("Failed to create directory ./" + folder);
+			}
+		}
+		return;
+	}
+	
 	////////////////////
 	// Nested Classes //
 	////////////////////
