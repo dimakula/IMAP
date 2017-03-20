@@ -159,32 +159,47 @@ public class IMAPHandler
 		if( theAuthenticationFlag )
 		{
 			String result;
+			int numEmails = 0;
 			
 			/*
 			 * Iterate through all the given directories and create them if
 			 * they don't already exist.
 			 */
+
 			for( String folder : theFolders )
 			{
 				/* Create the command string. */
-				final String selectCommand = "$ SELECT " + folder + "\r\n";
+				String command = "$ SELECT " + folder + "\r\n";
 				
 				try
 				{
-					theOutputStream.write(selectCommand.getBytes());
+					theOutputStream.write(command.getBytes());
 					theOutputStream.flush();
 
 					/* checks the second word in the line to see if it's NO. */
                     //result = theInputBuffer.readLine().split(" ")[1];
-                    
-                    /* Grab the results of the select and print it out. */
-                    for( int i = 0; i < 8; i++ )
-                    {
-						result = theInputBuffer.readLine();
-                    	System.out.println(result);
-                    }
 
-					final String fetchCommand = "$ FETCH 0:";
+					while((result = theInputBuffer.readLine()) != null) {
+						System.out.println (result);
+
+						// Get the number of emails present in the mailbox
+						if (result.matches(".*\\bEXISTS\\b.*")) {
+							numEmails = Integer.parseInt (result.replaceAll("\\D+",""));
+							System.out.println(numEmails);
+						}
+
+						// Breaks out on success or failure
+						else if (result.matches(".*\\b(Success)\\b.*") ||
+								result.matches(".*\\b(Failure)\\b.*")) {
+							break;
+						}
+					}
+
+					command = "$ FETCH 1:" + numEmails + " (FLAGS BODY[HEADER.FIELDS (From)])\r\n";
+
+					theOutputStream.write(command.getBytes());
+                    theOutputStream.flush();
+
                     
 				} catch (IOException theException) {
 					
@@ -194,7 +209,7 @@ public class IMAPHandler
 			}
 		}
 	}
-	
+
 	////////////////////
 	// Nested Classes //
 	////////////////////
