@@ -159,10 +159,9 @@ public class IMAPHandler
 	{
 		if( theAuthenticationFlag )
 		{
-<<<<<<< HEAD
 			String result, sender, subject, folderName;
 			String [] splitResult;
-=======
+
 			/* If the all flag is set, all directories are polled. */
 			if(theAllFlag)
 			{
@@ -171,9 +170,7 @@ public class IMAPHandler
 			
 			/* Create the directories for storing the emails. */
 			createDirectories();
-			
-			String result;
->>>>>>> 85dd1b9bfad464f52b352440d22f1a66b405d3ff
+
 			int numEmails = 0;
 			sender = subject = "";
 			int counter = 0; // Used to name the email folder
