@@ -4,6 +4,8 @@ import java.net.PasswordAuthentication;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.BufferUnderflowException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 
@@ -144,8 +146,7 @@ public class IMAPHandler
 		/* Attempt to login. Throw an error at failure. */
 		try
 		{
-			theOutputStream.write(loginCommand.getBytes());
-			theOutputStream.flush();
+			sendCommand (loginCommand);
 			
 			/* Print authentication message. */
 	        System.out.println(theInputBuffer.readLine ());
@@ -165,19 +166,18 @@ public class IMAPHandler
 		if( theAuthenticationFlag )
 		{
 			String result, sender, subject, folderName;
-			String [] splitResult;
+			String [] splitResult, senders, subjects;
 
 			/* If the all flag is set, all directories are polled. */
 			if(theAllFlag)
 			{
-				//theFolders = getFullDirectoryList();
+				theFolders = getFullDirectoryList();
 			}
 			
 			/* Create the directories for storing the emails. */
 			createDirectories();
 
 			int numEmails = 0;
-			sender = subject = "";
 			int counter = 0; // Used to name the email folder
 			
 			/*
@@ -192,8 +192,7 @@ public class IMAPHandler
 
 				try
 				{
-					theOutputStream.write(command.getBytes());
-					theOutputStream.flush();
+					sendCommand (command);
 
 					while((result = theInputBuffer.readLine()) != null) {
 
@@ -208,18 +207,22 @@ public class IMAPHandler
 							break;
 						}
 					}
-					
-					// Loop to get all the emails in the mailbox
-					for (int i = 1; i <= numEmails; i++) {
-						command = "$ FETCH " + i + " (FLAGS BODY[HEADER.FIELDS (From)])\r\n";
-						theOutputStream.write(command.getBytes());
-						theOutputStream.flush();
+
+					senders = new String [numEmails];
+					subjects = new String [numEmails];
+
+					command = "$ FETCH 1:" + numEmails + " (FLAGS BODY[HEADER.FIELDS (From)])\r\n";
+					sendCommand (command);
+
+					// Loop to get all the results of the fetch command
+					for (int i = 0; i < numEmails; i++) {
 
 						while ((result = theInputBuffer.readLine()) != null) {
 
-							// Breaks out on success or failure
+							// Breaks out on success or failure, or parenthesis
 							if (result.matches(".*\\b(Success)\\b.*") ||
-									result.matches(".*\\b(Failure)\\b.*")) {
+									result.matches(".*\\b(Failure)\\b.*") ||
+									result.equals(")")) {
 								break;
 							}
 
@@ -227,33 +230,70 @@ public class IMAPHandler
 							if (result.contains("From")) {
 								sender = theInputBuffer.readLine();
 								sender = sender.split("<")[1].split(">")[0];
+								senders[i] = sender;
 							}
 						}
+					}
 
-						command = "$ FETCH " + i + " (FLAGS BODY[HEADER.FIELDS (Subject)])\r\n";
-						theOutputStream.write(command.getBytes());
-						theOutputStream.flush();
+					theInputBuffer.readLine(); // get last success message out
 
+					command = "$ FETCH 1:" + numEmails + " (FLAGS BODY[HEADER.FIELDS (Subject)])\r\n";
+					sendCommand (command);
+
+					for (int i = 0; i < numEmails; i++) {
 						while ((result = theInputBuffer.readLine()) != null) {
 
 							// Breaks out on success or failure
 							if (result.matches(".*\\b(Success)\\b.*") ||
-									result.matches(".*\\b(Failure)\\b.*")) {
+									result.matches(".*\\b(Failure)\\b.*") ||
+									result.equals(")")) {
 								break;
 							}
 
 							splitResult = result.split(":");
-							if (splitResult[0].equals ("Subject"))
-							{
+							if (splitResult[0].equals("Subject")) {
 								subject = splitResult[1];
 								subject = subject.trim();
 								subject = subject.replaceAll("[^A-Za-z0-9]", "-");
+								subjects[i] = subject;
 							}
 						}
-
-						folderName = Integer.toString(counter++) + "_" + sender + "_" + subject;
-						System.out.println(folderName);
 					}
+
+					theInputBuffer.readLine(); // get last success message
+
+					command = "$ FETCH 1:" + numEmails + " BODY[TEXT]\r\n";
+					sendCommand (command);
+
+
+					// Create email folders within the mailbox
+					for (int i = 0; i < numEmails; i++) {
+
+						theInputBuffer.readLine(); // first line useless for our purposes
+						folderName = Integer.toString(counter++) + "_" + senders[i] + "_" + subjects[i];
+						new File (folder, folderName).mkdirs();
+
+						PrintWriter writer = new PrintWriter(new FileWriter(
+								folder + File.separator + folderName + File.separator + "content.txt"),
+								true);
+
+						while ((result = theInputBuffer.readLine()) != null) {
+
+							if (result.equals(")")) {
+								break;
+							}
+
+							writer.println (result);
+						}
+
+					}
+
+					if (deleteFlag) {
+						command = "$ DELETE " + folder + "\r\n";
+						sendCommand(command);
+					}
+
+					return;
 
 				} catch (IOException theException) {
 					
@@ -267,37 +307,42 @@ public class IMAPHandler
 	private String[] getFullDirectoryList()
 	{
 		ArrayList<String> output = new ArrayList<String>();
-		String result = null;
+		String result;
 		
 		/* Regex variables. */
-		Pattern extractionPattern = Pattern.compile("\"([A-Z])\\w+\"$");
+		Pattern extractionPattern = Pattern.compile("(\")(([A-Z]).*?)(\")$");
 		Matcher extractionMatcher;
 		
 		/* Build the list command. */
-		String listCommand = "$ LIST \"\" *" ;
+		String listCommand = "$ LIST \"\" *\r\n" ;
 		
 		/* Attempt to run the command and extract the result. */
 		try
 		{
 			theOutputStream.write(listCommand.getBytes());
 			theOutputStream.flush();
+
 		    while((result = theInputBuffer.readLine()) != null)
 		    {
 
-		    	// Check if matches no children before add.
-		    	if(result.contains("HasNoChildren"))
-		    	{
-		    		extractionMatcher = extractionPattern.matcher(result);
-		    		result = extractionMatcher.group();
-		    		output.add(result);
-		    	}
-		    
 				if (result.matches(".*\\b(Success)\\b.*") ||
-					result.matches(".*\\b(Failure)\\b.*")) {
+						result.matches(".*\\b(Failure)\\b.*")) {
 					break;
 				}
+
+		    	// Check if matches no children before add.
+		    	else if(result.contains("HasNoChildren"))
+		    	{
+		    		// get rid of all characters that can be problematic in creating the folder
+					result = result.replaceAll("[^A-Za-z0-9\"\\/ ]", "");
+					System.out.println (result);
+		    		extractionMatcher = extractionPattern.matcher(result);
+					extractionMatcher.find();
+		    		result = extractionMatcher.group(2);
+		    		output.add(result);
+
+		    	}
 		    }
-			
 		} 
 		catch (IOException inException) {
 			inException.printStackTrace();
@@ -305,12 +350,27 @@ public class IMAPHandler
 		
 		return output.toArray(new String[output.size()]);
 	}
-	
+
+	private void sendCommand (String command)
+	{
+		try
+		{
+			theOutputStream.write(command.getBytes());
+			theOutputStream.flush();
+		}
+
+		catch (IOException exception)
+		{
+			exception.printStackTrace();
+		}
+	}
+
 	private void createDirectories()
 	{
 		for( String folder : theFolders )
 		{
-			if(new File(folder).mkdir())
+			// Creates directories and any nested subdirectories
+			if(new File(folder).mkdirs())
 			{
 				System.out.println("Created directory ./" + folder);
 			}
